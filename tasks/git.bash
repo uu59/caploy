@@ -3,7 +3,7 @@
 set -ue
 
 git:check() {
-local repo_path_upstream="$(git --git-dir="$repo_path" ls-remote --get-url)"
+  local repo_path_upstream="$(git --git-dir="$repo_path" ls-remote --get-url)"
   if [ "$repo_path_upstream" != "$git_repo_url" ]; then
     rm -rf "$repo_path"
   fi
