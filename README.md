@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/uu59/caploy.svg?branch=master)](https://travis-ci.org/uu59/caploy)
+
 # Caploy
 
 ```console
