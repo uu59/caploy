@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+
+set -ue
+
+__caploy_setup() {
+  shared_path="$deploy_to/shared"
+  current_path="$deploy_to/current"
+  releases_path="$deploy_to/releases"
+  repo_path="$deploy_to/repo"
+}
+
+internal:build() {
+  local lib="${BASH_SOURCE[0]}"
+  local env="$1"
+  local command="$2"
+  if [ ! -f "$env" ]; then
+    error
+  fi
+  tmp=`mktemp`
+  cat "$lib" | grep -v 'internal:run "$@"' >> "$tmp"
+  cat "$env" >> "$tmp"
+  echo "__caploy_setup; $command" >> "$tmp"
+  echo "$tmp"
+}
+
+internal:run() {
+  local script="$(internal:build "$@")"
+  internal:upload_then_run "$script"
+}
+
+internal:run:dev() {
+  local env="$1"
+  local command="$2"
+  local script="$(mktemp)"
+
+  for file in $BASH_SOURCE tasks/*.bash; do
+    cat "$file" >> "$script"
+  done
+  cat "$env" >> "$script"
+  echo "__caploy_setup; $command" >> "$script"
+  internal:upload_then_run "$script"
+}
+
+internal:upload_then_run() {
+  local script="$1"
+
+  if [ -n "${CAPLOY_LOCAL:-""}" ];then
+    dst="/tmp/caploy-run-script-local.bash"
+    cp "$script" "$dst"
+    bash -c "chmod +x $dst && $dst"
+  else
+    : ${REMOTE_HOST:=localhost}
+    : ${REMOTE_PORT:=22} 
+    : ${REMOTE_SCRIPT_PATH:=/tmp/caploy-run-script.bash}
+    scp -P $REMOTE_PORT "$script" $REMOTE_HOST:$REMOTE_SCRIPT_PATH
+    rm -f "$script"
+    ssh $REMOTE_HOST -- "chmod +x $REMOTE_SCRIPT_PATH && $REMOTE_SCRIPT_PATH"
+  fi
+}
+
+#!/usr/bin/env bash
+
+set -ue
+
+deploy() {
+  deploy:check:directories
+  local release_path="$(git:release "$git_branch")"
+  cd "$release_path"
+  deploy:symlink:shared "$release_path"
+  deploy:set_current_revision "$release_path"
+  deploy:restart
+  deploy:cleanup "${keep_release:-3}"
+}
+
+deploy:check:directories() {
+  mkdir -p "$shared_path"
+  mkdir -p "$releases_path"
+}
+
+deploy:set_current_revision() {
+  local release_path="$1"
+  rm -f "$current_path" && ln -sf "$release_path" "$current_path"
+}
+
+deploy:symlink:shared() {
+  local shared="$shared_path"
+  local release_path="$1"
+
+  if [ -n "${linked_files[@]:-""}" ];then
+    for file in ${linked_files[@]}; do
+      ln -sf "$shared/$file" "$release_path"
+    done
+  fi
+
+  if [ -n "${linked_dirs[@]:-""}" ];then
+    for dir in ${linked_dirs[@]}; do
+      ln -sf "$shared/$dir" "$release_path"
+    done
+  fi
+}
+
+deploy:cleanup() {
+  local keep_release="$1"
+  local releases="$(ls -xt $releases_path)"
+  local counter=0
+  for rel in $releases; do
+    counter=$(($counter + 1))
+    if [ $counter -gt $keep_release ];then
+      rm -r "$releases_path/$rel"
+    fi
+  done
+}
+
+deploy:restart() {
+  : deploy:restart called
+}
+#!/usr/bin/env bash
+
+set -ue
+
+git:check() {
+local repo_path_upstream="$(git --git-dir="$repo_path" ls-remote --get-url)"
+  if [ "$repo_path_upstream" != "$git_repo_url" ]; then
+    rm -rf "$repo_path"
+  fi
+}
+
+git:clone() {
+  if [ -d "$repo_path" ]; then
+    # TODO: Update exists repo upstream url
+    : git --git-dir="$repo_path" remote -v
+  else
+    git clone --bare --mirror "$git_repo_url" "$repo_path"
+  fi
+}
+
+git:update() {
+  git:check
+  git:clone
+  git --git-dir="$repo_path" fetch --prune
+}
+
+git:release() {
+  git:update
+  local revision="$(git:commit_hash "${1:-master}")"
+
+  local release_path="$releases_path/$revision"
+  if [ -d "$release_path" ];then
+    echo "Already deployed" >&2
+  else
+    mkdir -p "$release_path"
+    git --git-dir="$repo_path" archive "$revision" | tar xf - -C $release_path/
+  fi
+  echo "$release_path"
+}
+
+git:commit_hash() {
+  local revision="${1:-master}"
+  git --git-dir="$repo_path" rev-list --max-count=1 "$revision"
+}
+internal:run "$@"

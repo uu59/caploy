@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+set -ue
+
+. internal.bash
+
+internal:run:dev "$@"
