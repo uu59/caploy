@@ -17,7 +17,7 @@ internal:build() {
     error
   fi
   tmp=`mktemp`
-  cat "$lib" | grep -v 'internal:run "$@"' >> "$tmp"
+  cat "$lib" | grep -F -v 'internal:run "$@"' >> "$tmp"
   cat "$env" >> "$tmp"
   echo "__caploy_setup; $command" >> "$tmp"
   echo "$tmp"
@@ -119,6 +119,9 @@ deploy:restart() {
 set -ue
 
 git:check() {
+  if [ ! -d "$repo_path" ];then
+    return
+  fi
   local repo_path_upstream="$(git --git-dir="$repo_path" ls-remote --get-url)"
   if [ "$repo_path_upstream" != "$git_repo_url" ]; then
     rm -rf "$repo_path"
@@ -130,7 +133,7 @@ git:clone() {
     # TODO: Update exists repo upstream url
     : git --git-dir="$repo_path" remote -v
   else
-    git clone --bare --mirror "$git_repo_url" "$repo_path"
+    git clone -q --bare --mirror "$git_repo_url" "$repo_path"
   fi
 }
 

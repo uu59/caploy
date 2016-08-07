@@ -3,6 +3,9 @@
 set -ue
 
 git:check() {
+  if [ ! -d "$repo_path" ];then
+    return
+  fi
   local repo_path_upstream="$(git --git-dir="$repo_path" ls-remote --get-url)"
   if [ "$repo_path_upstream" != "$git_repo_url" ]; then
     rm -rf "$repo_path"
@@ -14,7 +17,7 @@ git:clone() {
     # TODO: Update exists repo upstream url
     : git --git-dir="$repo_path" remote -v
   else
-    git clone --bare --mirror "$git_repo_url" "$repo_path"
+    git clone -q --bare --mirror "$git_repo_url" "$repo_path"
   fi
 }
 

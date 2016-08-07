@@ -17,7 +17,7 @@ internal:build() {
     error
   fi
   tmp=`mktemp`
-  cat "$lib" | grep -v 'internal:run "$@"' >> "$tmp"
+  cat "$lib" | grep -F -v 'internal:run "$@"' >> "$tmp"
   cat "$env" >> "$tmp"
   echo "__caploy_setup; $command" >> "$tmp"
   echo "$tmp"
