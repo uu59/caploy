@@ -19,9 +19,7 @@ deploy:check:directories() {
 
 deploy:set_current_revision() {
   local release_path="$1"
-  tmp_current_path="$release_path/../tmp_current"
-  ln -s "$release_path" "$tmp_current_path"
-  mv "$tmp_current_path" "$current_path"
+  rm -f "$current_path" && ln -sf "$release_path" "$current_path"
 }
 
 deploy:symlink:shared() {
