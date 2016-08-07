@@ -49,12 +49,12 @@ internal:upload_then_run() {
     cp "$script" "$dst"
     bash -c "chmod +x $dst && $dst"
   else
-    : ${REMOTE_HOST:=localhost}
-    : ${REMOTE_PORT:=22} 
-    : ${REMOTE_SCRIPT_PATH:=/tmp/caploy-run-script.bash}
-    scp -P $REMOTE_PORT "$script" $REMOTE_HOST:$REMOTE_SCRIPT_PATH
+    : ${remote_host:=localhost}
+    : ${remote_port:=22}
+    : ${remote_script_path:=/tmp/caploy-run-script.bash}
+    scp -q -P $remote_port "$script" $remote_host:$remote_script_path
     rm -f "$script"
-    ssh $REMOTE_HOST -- "chmod +x $REMOTE_SCRIPT_PATH && $REMOTE_SCRIPT_PATH"
+    ssh $remote_host -- "chmod +x $remote_script_path && $remote_script_path"
   fi
 }
 
