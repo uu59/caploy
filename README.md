@@ -16,7 +16,8 @@ git_branch="master"
 # linked_files=(config.yml .env)
 # linked_dirs=(log)
 
-REMOTE_HOST=127.0.0.1
+remote_host=127.0.0.1
+remote_port=22
 
 deploy:restart() {
   echo "Deploy finished."
