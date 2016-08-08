@@ -3,5 +3,8 @@
 set -ue
 
 . internal.bash
+for task in tasks/*.bash; do
+  . $task
+done
 
 internal:run:dev "$@"

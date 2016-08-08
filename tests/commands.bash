@@ -2,7 +2,7 @@
 
 here="$(cd $(dirname $0); pwd)"
 
-. $here/../build-dist.bash
+$here/../build.bash "0.0.0-test"
 . $here/../assert.sh/assert.sh
 
 deploy_to=/tmp/cap4
@@ -28,6 +28,24 @@ clear_deploy_to() {
 }
 
 set +u
+
+rm -rf "$here/tmpdir"
+mkdir -p "$here/tmpdir"
+mkdir -p "$here/tmpdir/dir"
+echo 'deploy_to=/tmp' > "$here/tmpdir/file"
+ln -s "$here/tmpdir/file" "$here/tmpdir/link"
+assert_raises "./caploy" 64
+assert_raises "./caploy /dev/null" 64
+assert_raises "./caploy $here/tmpdir/file test" 0
+assert_raises "./caploy $here/tmpdir/link test" 0
+assert_raises "./caploy $here/tmpdir/dir test" 64
+assert_raises "./caploy $here/tmpdir/file does_not_exist" 64
+assert_end "invalid args then usage exit"
+rm -rf "$here/tmpdir"
+
+assert_raises "./caploy /tmp/env test" 0
+assert "./caploy /tmp/env test:version" "0.0.0-test"
+assert_end "test commands"
 
 clear_deploy_to
 ./caploy /tmp/env git:update
@@ -63,3 +81,5 @@ done
 assert "ls $deploy_to/releases | wc -l" "1" # keep_release
 assert "[ -d $deploy_to/releases/$(git rev-parse master) ]"
 assert_end "deploy:cleanup"
+
+git checkout HEAD -- ./caploy

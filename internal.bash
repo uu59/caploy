@@ -9,13 +9,50 @@ __caploy_setup() {
   repo_path="$deploy_to/repo"
 }
 
+__caploy_display_usage() {
+  cat <<TXT >&2
+Usage: $(basename $0) [env] [command]
+
+caploy version $(__caploy_get_version)
+TXT
+}
+
+__caploy_get_version() {
+  if [ "$(type -t __caploy_version)" = "function" ];then
+    ver=`__caploy_version`
+  else
+    ver="(development)"
+  fi
+  echo $ver
+}
+
+__caploy_usage_exit() {
+  exit 64
+}
+
+internal:run:check() {
+  local env="${1:-""}"
+  local command="${2:-""}"
+  if [ -z "$env" -o -z "$command" ];then
+    __caploy_display_usage
+    __caploy_usage_exit
+  fi
+
+  if [ ! -f "$env" -a ! -L "$env" ];then
+    echo "'$env' does not exist or not a file" >&2
+    __caploy_usage_exit
+  fi
+
+  if [ "$(type -t $command)" != "function" ];then
+    echo "'$command' is not valid command" >&2
+    __caploy_usage_exit
+  fi
+}
+
 internal:build() {
   local lib="${BASH_SOURCE[0]}"
   local env="$1"
   local command="$2"
-  if [ ! -f "$env" ]; then
-    error
-  fi
   tmp=`mktemp`
   cat "$lib" | grep -F -v 'internal:run "$@"' >> "$tmp"
   cat "$env" >> "$tmp"
@@ -24,13 +61,18 @@ internal:build() {
 }
 
 internal:run() {
+  internal:run:check "$@"
   local script="$(internal:build "$@")"
   internal:upload_then_run "$script"
 }
 
 internal:run:dev() {
+  internal:run:check "$@"
   local env="$1"
   local command="$2"
+  if [ -z "$env" -o -z "$command" ];then
+    __caploy_usage_exit
+  fi
   local script="$(mktemp)"
 
   for file in $BASH_SOURCE tasks/*.bash; do
